@@ -80,11 +80,11 @@ class UserController extends BaseController
         return [
             'userId'       => (int)$user->id,
             'userName'     => $user->username,
-            'realName'     => $user->username,
-            'nickName'     => $user->username,
+            'realName'     => $user->real_name ?: $user->username,
+            'nickName'     => $user->real_name ?: $user->username,
             'email'        => $user->email,
             'avatar'       => $user->avatar ?: '',
-            'mobile'       => '',
+            'mobile'       => $user->mobile ?: '',
             'address'      => '',
             'gender'       => '',
             'introduction' => '',
@@ -96,13 +96,13 @@ class UserController extends BaseController
     public function actionUpdateProfile(): array
     {
         $user = $this->findUser((int)Yii::$app->user->id);
-        $username = trim((string)Yii::$app->request->post('userName', $user->username));
+        $realName = trim((string)Yii::$app->request->post('userName', $user->real_name ?: $user->username));
         $email = trim((string)Yii::$app->request->post('email', $user->email));
         $avatar = trim((string)Yii::$app->request->post('avatar', (string)$user->avatar));
 
-        $this->validateUserInput($username, $email, '', (int)$user->id, false);
+        $this->validateUserInput($user->username, $email, '', (int)$user->id, false);
 
-        $user->username = $username;
+        $user->real_name = $realName;
         $user->email = $email;
         $user->avatar = $avatar;
 
@@ -531,6 +531,8 @@ class UserController extends BaseController
         return [
             'id'         => (int)$user->id,
             'username'   => $user->username,
+            'real_name'  => $user->real_name ?: '',
+            'mobile'     => $user->mobile ?: '',
             'email'      => $user->email,
             'avatar'     => $user->avatar ?: '',
             'status'     => (int)$user->status,

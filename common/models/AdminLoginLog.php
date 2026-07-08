@@ -2,6 +2,9 @@
 
 namespace common\models;
 
+use yii\behaviors\TimestampBehavior;
+use yii\db\ActiveRecord;
+
 /**
  * This is the model class for table "admin_login_log".
  *
@@ -14,8 +17,17 @@ namespace common\models;
  * @property string $message 登录结果说明
  * @property int $created_at 创建时间
  */
-class AdminLoginLog extends \yii\db\ActiveRecord
+class AdminLoginLog extends ActiveRecord
 {
+    public function behaviors(): array
+    {
+        return [
+            [
+                'class' => TimestampBehavior::class,
+                'updatedAtAttribute' => false,
+            ],
+        ];
+    }
 
 
     /**

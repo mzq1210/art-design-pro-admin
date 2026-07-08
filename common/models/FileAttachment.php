@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace common\models;
 
+use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 
 /**
@@ -24,6 +25,13 @@ use yii\db\ActiveRecord;
  */
 class FileAttachment extends ActiveRecord
 {
+    public function behaviors(): array
+    {
+        return [
+            TimestampBehavior::class,
+        ];
+    }
+
     public static function tableName(): string
     {
         return '{{%file_attachment}}';

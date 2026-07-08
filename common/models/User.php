@@ -20,6 +20,8 @@ use yii\web\IdentityInterface;
  * @property string $verification_token
  * @property string $email
  * @property string|null $avatar
+ * @property string $mobile
+ * @property string $real_name
  * @property string $auth_key
  * @property int $status
  * @property int $created_at

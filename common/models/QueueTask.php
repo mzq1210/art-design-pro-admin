@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace common\models;
 
+use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 
 /**
@@ -27,6 +28,13 @@ class QueueTask extends ActiveRecord
     public const STATUS_RUNNING = 1;
     public const STATUS_SUCCESS = 2;
     public const STATUS_FAILED = 3;
+
+    public function behaviors(): array
+    {
+        return [
+            TimestampBehavior::class,
+        ];
+    }
 
     public static function tableName(): string
     {

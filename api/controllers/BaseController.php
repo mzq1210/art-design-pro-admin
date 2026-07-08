@@ -183,7 +183,6 @@ class BaseController extends Controller
             $log->message = substr($message, 0, 255);
             $log->status = $response->isSuccessful ? 1 : 0;
             $log->duration = (int)round((microtime(true) - $this->requestStartedAt) * 1000);
-            $log->created_at = time();
             $log->save(false);
         } catch (\Throwable) {
         }

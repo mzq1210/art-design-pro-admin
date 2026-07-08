@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace api\controllers;
 
-use common\models\Notice;
+use common\services\NoticeService;
 use Yii;
-use yii\web\BadRequestHttpException;
-use yii\web\NotFoundHttpException;
 
 class NoticeController extends BaseController
 {
@@ -19,83 +17,40 @@ class NoticeController extends BaseController
         'delete' => 'notice.delete',
     ];
 
+    private NoticeService $noticeService;
+
+    public function __construct($id, $module, NoticeService $noticeService, $config = [])
+    {
+        $this->noticeService = $noticeService;
+        parent::__construct($id, $module, $config);
+    }
+
     public function actionIndex(): array
     {
-        $page   = Yii::$app->request->post('page', 1);
-        $size   = Yii::$app->request->post('size', 10);
-        $status = Yii::$app->request->post('status', -1);
-
-        $query = Notice::find();
-        if ($status !== -1) {
-            $query = $query->andWhere(['status' => $status]);
-        }
-
-        $list  = $query->offset(($page - 1) * $size)
-            ->limit($size)->orderBy(['id' => SORT_DESC])->asArray()->all();
-        $total = Notice::find()->count();
-        return [
-            'records' => $list,
-            'current' => $page + 1,
-            'size'    => $size,
-            'total'   => $total
-        ];
+        return $this->noticeService->index(
+            max(1, (int)Yii::$app->request->post('page', 1)),
+            max(1, (int)Yii::$app->request->post('size', 10)),
+            (int)Yii::$app->request->post('status', -1)
+        );
     }
 
     public function actionCreate(): array
     {
-        $post  = Yii::$app->request->post();
-        $model = new Notice();
-        $model->load($post, '');
-        if (!$model->save()) {
-            throw new BadRequestHttpException('创建失败');
-        }
-        return [
-            'model' => $model
-        ];
+        return $this->noticeService->create(Yii::$app->request->post());
     }
 
     public function actionUpdate(): array
     {
-        $post  = Yii::$app->request->post();
-        $model = Notice::findOne($post['id']);
-        if ($model === null) {
-            throw new NotFoundHttpException('公告不存在');
-        }
-
-        $model->load($post, '');
-        if (!$model->save()) {
-            throw new BadRequestHttpException('更新失败');
-        }
-        return [
-            'model' => $model
-        ];
+        return $this->noticeService->update((int)Yii::$app->request->post('id', 0), Yii::$app->request->post());
     }
 
     public function actionDelete(): array
     {
-        $id    = Yii::$app->request->post('id');
-        $model = Notice::findOne($id);
-        if ($model === null) {
-            throw new NotFoundHttpException('公告不存在');
-        }
-
-        $model->updateAttributes(['status' => 0]);
-        return [
-            'id'      => $model->id,
-            'deleted' => true,
-        ];
+        return $this->noticeService->delete((int)Yii::$app->request->post('id', 0));
     }
 
     public function actionView(): array
     {
-        $post  = Yii::$app->request->post();
-        $model = Notice::findOne($post['id']);
-        if ($model === null) {
-            throw new NotFoundHttpException('公告不存在');
-        }
-
-        return [
-            'model' => $model
-        ];
+        return $this->noticeService->view((int)Yii::$app->request->post('id', 0));
     }
 }

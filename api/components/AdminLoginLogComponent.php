@@ -37,7 +37,6 @@ class AdminLoginLogComponent extends Component
             $log->user_agent = StringHelper::truncate($request->userAgent ?? '', 512, '');
             $log->status = $status;
             $log->message = StringHelper::truncate($message, 255, '');
-            $log->created_at = time();
             $log->save(false);
         } catch (Throwable $e) {
             Yii::warning($e->getMessage(), __METHOD__);
