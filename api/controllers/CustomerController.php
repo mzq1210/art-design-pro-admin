@@ -4,8 +4,16 @@ declare(strict_types=1);
 
 namespace api\controllers;
 
+use common\models\AdProduct;
+use common\models\ContractProduct;
 use common\models\Customer;
 use common\models\CustomerContact;
+use common\models\CustomerFollow;
+use common\models\Contract;
+use common\models\Fulfillment;
+use common\models\Manuscript;
+use common\models\ReceivablePlan;
+use common\models\ReceivableRecord;
 use common\models\User;
 use Yii;
 use yii\db\Expression;
@@ -88,6 +96,7 @@ class CustomerController extends BaseController
     public function actionSelectOptions(): array
     {
         return [
+            'customers' => $this->getCustomerOptions(),
             'users' => $this->getUserOptions(),
         ];
     }
@@ -95,9 +104,32 @@ class CustomerController extends BaseController
     public function actionView(): array
     {
         $model = $this->findCustomer((int)Yii::$app->request->post('id', 0));
+        $contracts = Contract::find()
+            ->where(['customer_id' => $model->id, 'deleted' => 0])
+            ->orderBy(['id' => SORT_DESC])
+            ->asArray()
+            ->all();
+        $contractIds = array_map(static fn (array $row): int => (int)$row['id'], $contracts);
+        $follows = CustomerFollow::find()
+            ->where(['customer_id' => $model->id, 'deleted' => 0])
+            ->orderBy(['follow_time' => SORT_DESC, 'id' => SORT_DESC])
+            ->limit(50)
+            ->all();
+        $plans = $this->getReceivablePlans((int)$model->id);
+        $records = $this->getReceivableRecords((int)$model->id);
+        $fulfillments = $this->getFulfillments((int)$model->id);
+        $manuscripts = $this->getManuscripts((int)$model->id);
 
         return [
             'customer' => $this->serializeCustomer($model),
+            'stats' => [
+                'contract_count' => count($contracts),
+                'contract_amount' => (string)array_sum(array_map(static fn (array $row): float => (float)($row['final_amount'] ?? 0), $contracts)),
+                'received_amount' => (string)array_sum(array_map(static fn (array $row): float => (float)($row['received_amount'] ?? 0), $contracts)),
+                'pending_amount' => (string)array_sum(array_map(static fn (array $row): float => (float)($row['pending_amount'] ?? 0), $contracts)),
+                'contact_count' => (int)CustomerContact::find()->where(['customer_id' => $model->id, 'deleted' => 0])->count(),
+                'follow_count' => (int)CustomerFollow::find()->where(['customer_id' => $model->id, 'deleted' => 0])->count(),
+            ],
             'contacts' => array_map(
                 [$this, 'serializeContact'],
                 CustomerContact::find()
@@ -105,6 +137,20 @@ class CustomerController extends BaseController
                     ->orderBy(['is_primary' => SORT_DESC, 'id' => SORT_ASC])
                     ->all()
             ),
+            'follows' => array_map(
+                [$this, 'serializeFollow'],
+                $follows
+            ),
+            'contracts' => array_map(
+                [$this, 'serializeContractArray'],
+                $contracts
+            ),
+            'contract_products' => $this->getContractProducts($contractIds),
+            'receivable_plans' => $plans,
+            'receivable_records' => $records,
+            'fulfillments' => $fulfillments,
+            'manuscripts' => $manuscripts,
+            'timeline' => $this->buildTimeline($follows, $contracts, $plans, $records, $fulfillments, $manuscripts),
         ];
     }
 
@@ -282,7 +328,7 @@ class CustomerController extends BaseController
             'cooperation_start_date' => $row['cooperation_start_date'] ?? null,
             'source' => (string)($row['source'] ?? ''),
             'follow_status' => (int)($row['follow_status'] ?? 1),
-            //'latest_follow_time' => (int)($row['latest_follow_time'] ?? 0),
+            'latest_follow_time' => (int)($row['latest_follow_time'] ?? 0),
             'signed_contract_amount' => (string)($row['signed_contract_amount'] ?? '0.00'),
             'received_amount' => (string)($row['received_amount'] ?? '0.00'),
             'remark' => (string)($row['remark'] ?? ''),
@@ -307,6 +353,333 @@ class CustomerController extends BaseController
             'created_at' => (int)$contact->created_at,
             'updated_at' => (int)$contact->updated_at,
         ];
+    }
+
+    private function serializeFollow(CustomerFollow $follow): array
+    {
+        $contact = $follow->contact;
+        $owner = $follow->owner;
+
+        return [
+            'id' => (int)$follow->id,
+            'customer_id' => (int)$follow->customer_id,
+            'contact_id' => (int)$follow->contact_id,
+            'contact_name' => $contact->contact_name ?? '',
+            'contact_mobile' => $contact->mobile ?? '',
+            'owner_user_id' => (int)$follow->owner_user_id,
+            'owner_name' => $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '',
+            'follow_time' => (int)$follow->follow_time,
+            'follow_type' => (int)$follow->follow_type,
+            'follow_status' => (int)$follow->follow_status,
+            'next_follow_time' => (int)$follow->next_follow_time,
+            'content' => (string)$follow->content,
+            'result' => (string)$follow->result,
+            'created_at' => (int)$follow->created_at,
+            'updated_at' => (int)$follow->updated_at,
+        ];
+    }
+
+    private function serializeContractArray(array $row): array
+    {
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'contract_no' => (string)($row['contract_no'] ?? ''),
+            'contract_name' => (string)($row['contract_name'] ?? ''),
+            'contract_type' => (int)($row['contract_type'] ?? 1),
+            'parent_contract_id' => (int)($row['parent_contract_id'] ?? 0),
+            'final_amount' => (string)($row['final_amount'] ?? '0.00'),
+            'received_amount' => (string)($row['received_amount'] ?? '0.00'),
+            'pending_amount' => (string)($row['pending_amount'] ?? '0.00'),
+            'status' => (int)($row['status'] ?? 1),
+            'approval_status' => (int)($row['approval_status'] ?? 0),
+            'start_date' => $row['start_date'] ?? null,
+            'end_date' => $row['end_date'] ?? null,
+            'created_at' => (int)($row['created_at'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param int[] $contractIds
+     */
+    private function getContractProducts(array $contractIds): array
+    {
+        if ($contractIds === []) {
+            return [];
+        }
+
+        $rows = ContractProduct::find()
+            ->where(['contract_id' => $contractIds, 'deleted' => 0])
+            ->orderBy(['contract_id' => SORT_DESC, 'sort' => SORT_ASC, 'id' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int)($row['id'] ?? 0),
+            'contract_id' => (int)($row['contract_id'] ?? 0),
+            'product_id' => (int)($row['product_id'] ?? 0),
+            'product_name' => (string)($row['product_name'] ?? ''),
+            'media_name' => (string)($row['media_name'] ?? ''),
+            'ad_type' => (string)($row['ad_type'] ?? ''),
+            'unit' => (string)($row['unit'] ?? ''),
+            'sale_price' => (string)($row['sale_price'] ?? '0.00'),
+            'quantity' => (string)($row['quantity'] ?? '0.00'),
+            'executed_quantity' => (string)($row['executed_quantity'] ?? '0.00'),
+            'amount' => (string)($row['amount'] ?? '0.00'),
+            'start_date' => $row['start_date'] ?? null,
+            'end_date' => $row['end_date'] ?? null,
+            'delivery_requirements' => (string)($row['delivery_requirements'] ?? ''),
+        ], $rows);
+    }
+
+    private function getReceivablePlans(int $customerId): array
+    {
+        $rows = ReceivablePlan::find()
+            ->alias('rp')
+            ->select([
+                'rp.*',
+                'contract_no' => new Expression("COALESCE(ct.contract_no, '')"),
+                'contract_name' => new Expression("COALESCE(ct.contract_name, '')"),
+                'owner_name' => new Expression("COALESCE(NULLIF(u.real_name, ''), u.username, '')"),
+            ])
+            ->leftJoin(['ct' => Contract::tableName()], 'ct.id = rp.contract_id AND ct.deleted = 0')
+            ->leftJoin(['u' => User::tableName()], 'u.id = rp.owner_user_id')
+            ->where(['rp.customer_id' => $customerId, 'rp.deleted' => 0])
+            ->orderBy(['rp.plan_date' => SORT_ASC, 'rp.id' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        return array_map([$this, 'serializeReceivablePlanArray'], $rows);
+    }
+
+    private function getReceivableRecords(int $customerId): array
+    {
+        $rows = ReceivableRecord::find()
+            ->alias('rr')
+            ->select([
+                'rr.*',
+                'plan_no' => new Expression("COALESCE(rp.plan_no, '')"),
+                'plan_name' => new Expression("COALESCE(rp.plan_name, '')"),
+                'contract_no' => new Expression("COALESCE(ct.contract_no, '')"),
+                'contract_name' => new Expression("COALESCE(ct.contract_name, '')"),
+                'owner_name' => new Expression("COALESCE(NULLIF(u.real_name, ''), u.username, '')"),
+            ])
+            ->leftJoin(['rp' => ReceivablePlan::tableName()], 'rp.id = rr.receivable_plan_id AND rp.deleted = 0')
+            ->leftJoin(['ct' => Contract::tableName()], 'ct.id = rr.contract_id AND ct.deleted = 0')
+            ->leftJoin(['u' => User::tableName()], 'u.id = rr.owner_user_id')
+            ->where(['rr.customer_id' => $customerId, 'rr.deleted' => 0])
+            ->orderBy(['rr.receipt_date' => SORT_DESC, 'rr.id' => SORT_DESC])
+            ->asArray()
+            ->all();
+
+        return array_map([$this, 'serializeReceivableRecordArray'], $rows);
+    }
+
+    private function getFulfillments(int $customerId): array
+    {
+        $rows = Fulfillment::find()
+            ->alias('f')
+            ->select([
+                'f.*',
+                'contract_no' => new Expression("COALESCE(ct.contract_no, '')"),
+                'contract_name' => new Expression("COALESCE(ct.contract_name, '')"),
+                'product_name' => new Expression("COALESCE(p.product_name, '')"),
+                'product_code' => new Expression("COALESCE(p.product_code, '')"),
+                'owner_name' => new Expression("COALESCE(NULLIF(u.real_name, ''), u.username, '')"),
+            ])
+            ->leftJoin(['ct' => Contract::tableName()], 'ct.id = f.contract_id AND ct.deleted = 0')
+            ->leftJoin(['p' => AdProduct::tableName()], 'p.id = f.product_id AND p.deleted = 0')
+            ->leftJoin(['u' => User::tableName()], 'u.id = f.owner_user_id')
+            ->where(['f.customer_id' => $customerId, 'f.deleted' => 0])
+            ->orderBy(['f.id' => SORT_DESC])
+            ->asArray()
+            ->all();
+
+        return array_map([$this, 'serializeFulfillmentArray'], $rows);
+    }
+
+    private function getManuscripts(int $customerId): array
+    {
+        $rows = Manuscript::find()
+            ->alias('m')
+            ->select([
+                'm.*',
+                'product_name' => new Expression("COALESCE(p.product_name, '')"),
+                'product_code' => new Expression("COALESCE(p.product_code, '')"),
+            ])
+            ->leftJoin(['p' => AdProduct::tableName()], 'p.id = m.product_id AND p.deleted = 0')
+            ->where(['m.customer_id' => $customerId, 'm.deleted' => 0])
+            ->orderBy(['m.id' => SORT_DESC])
+            ->asArray()
+            ->all();
+
+        return array_map([$this, 'serializeManuscriptArray'], $rows);
+    }
+
+    private function serializeReceivablePlanArray(array $row): array
+    {
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'plan_no' => (string)($row['plan_no'] ?? ''),
+            'contract_id' => (int)($row['contract_id'] ?? 0),
+            'contract_no' => (string)($row['contract_no'] ?? ''),
+            'contract_name' => (string)($row['contract_name'] ?? ''),
+            'owner_name' => (string)($row['owner_name'] ?? ''),
+            'plan_name' => (string)($row['plan_name'] ?? ''),
+            'plan_date' => $row['plan_date'] ?? null,
+            'plan_amount' => (string)($row['plan_amount'] ?? '0.00'),
+            'received_amount' => (string)($row['received_amount'] ?? '0.00'),
+            'pending_amount' => (string)($row['pending_amount'] ?? '0.00'),
+            'invoice_amount' => (string)($row['invoice_amount'] ?? '0.00'),
+            'status' => (int)($row['status'] ?? 1),
+            'remark' => (string)($row['remark'] ?? ''),
+            'created_at' => (int)($row['created_at'] ?? 0),
+        ];
+    }
+
+    private function serializeReceivableRecordArray(array $row): array
+    {
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'record_no' => (string)($row['record_no'] ?? ''),
+            'contract_id' => (int)($row['contract_id'] ?? 0),
+            'contract_no' => (string)($row['contract_no'] ?? ''),
+            'contract_name' => (string)($row['contract_name'] ?? ''),
+            'plan_name' => (string)($row['plan_name'] ?? ''),
+            'owner_name' => (string)($row['owner_name'] ?? ''),
+            'receipt_date' => $row['receipt_date'] ?? null,
+            'receipt_amount' => (string)($row['receipt_amount'] ?? '0.00'),
+            'receipt_method' => (string)($row['receipt_method'] ?? ''),
+            'payer_name' => (string)($row['payer_name'] ?? ''),
+            'status' => (int)($row['status'] ?? 1),
+            'remark' => (string)($row['remark'] ?? ''),
+            'created_at' => (int)($row['created_at'] ?? 0),
+        ];
+    }
+
+    private function serializeFulfillmentArray(array $row): array
+    {
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'fulfillment_no' => (string)($row['fulfillment_no'] ?? ''),
+            'contract_id' => (int)($row['contract_id'] ?? 0),
+            'contract_no' => (string)($row['contract_no'] ?? ''),
+            'contract_name' => (string)($row['contract_name'] ?? ''),
+            'product_name' => (string)($row['product_name'] ?? ''),
+            'product_code' => (string)($row['product_code'] ?? ''),
+            'owner_name' => (string)($row['owner_name'] ?? ''),
+            'plan_date' => $row['plan_date'] ?? null,
+            'fulfillment_date' => $row['fulfillment_date'] ?? null,
+            'execute_quantity' => (string)($row['execute_quantity'] ?? '0.00'),
+            'executed_quantity' => (string)($row['executed_quantity'] ?? '0.00'),
+            'execute_amount' => (string)($row['execute_amount'] ?? '0.00'),
+            'status' => (int)($row['status'] ?? 1),
+            'content_summary' => (string)($row['content_summary'] ?? ''),
+            'result_summary' => (string)($row['result_summary'] ?? ''),
+            'created_at' => (int)($row['created_at'] ?? 0),
+        ];
+    }
+
+    private function serializeManuscriptArray(array $row): array
+    {
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'manuscript_no' => (string)($row['manuscript_no'] ?? ''),
+            'title' => (string)($row['title'] ?? ''),
+            'manuscript_type' => (int)($row['manuscript_type'] ?? 1),
+            'product_name' => (string)($row['product_name'] ?? ''),
+            'product_code' => (string)($row['product_code'] ?? ''),
+            'article_link' => (string)($row['article_link'] ?? ''),
+            'remark' => (string)($row['remark'] ?? ''),
+            'created_at' => (int)($row['created_at'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param CustomerFollow[] $follows
+     */
+    private function buildTimeline(array $follows, array $contracts, array $plans, array $records, array $fulfillments, array $manuscripts): array
+    {
+        $items = [];
+        foreach ($follows as $follow) {
+            $items[] = [
+                'type' => 'follow',
+                'title' => '新增跟进记录',
+                'content' => (string)$follow->content,
+                'operator' => $follow->owner ? ((string)$follow->owner->real_name !== '' ? $follow->owner->real_name : $follow->owner->username) : '',
+                'time' => (int)$follow->follow_time,
+                'link_id' => (int)$follow->id,
+            ];
+        }
+        foreach ($contracts as $row) {
+            $items[] = [
+                'type' => 'contract',
+                'title' => '新增销售合同',
+                'content' => (string)($row['contract_name'] ?? ''),
+                'amount' => (string)($row['final_amount'] ?? '0.00'),
+                'time' => (int)($row['created_at'] ?? 0),
+                'link_id' => (int)($row['id'] ?? 0),
+            ];
+        }
+        foreach ($plans as $row) {
+            $items[] = [
+                'type' => 'receivable_plan',
+                'title' => '新增回款计划',
+                'content' => (string)($row['plan_name'] ?? ''),
+                'amount' => (string)($row['plan_amount'] ?? '0.00'),
+                'time' => (int)($row['created_at'] ?? 0),
+                'link_id' => (int)($row['id'] ?? 0),
+            ];
+        }
+        foreach ($records as $row) {
+            $items[] = [
+                'type' => 'receivable_record',
+                'title' => '登记回款',
+                'content' => (string)($row['contract_name'] ?? ''),
+                'amount' => (string)($row['receipt_amount'] ?? '0.00'),
+                'time' => (int)($row['created_at'] ?? 0),
+                'link_id' => (int)($row['id'] ?? 0),
+            ];
+        }
+        foreach ($fulfillments as $row) {
+            $items[] = [
+                'type' => 'fulfillment',
+                'title' => '新增履约任务',
+                'content' => (string)($row['product_name'] ?? ''),
+                'time' => (int)($row['created_at'] ?? 0),
+                'link_id' => (int)($row['id'] ?? 0),
+            ];
+        }
+        foreach ($manuscripts as $row) {
+            $items[] = [
+                'type' => 'manuscript',
+                'title' => '新增稿件',
+                'content' => (string)($row['title'] ?? ''),
+                'time' => (int)($row['created_at'] ?? 0),
+                'link_id' => (int)($row['id'] ?? 0),
+            ];
+        }
+
+        usort($items, static fn (array $a, array $b): int => ((int)$b['time']) <=> ((int)$a['time']));
+
+        return array_slice($items, 0, 30);
+    }
+
+    private function getCustomerOptions(): array
+    {
+        $rows = Customer::find()
+            ->select(['id', 'customer_name', 'customer_code', 'owner_user_id'])
+            ->where(['deleted' => 0])
+            ->orderBy(['id' => SORT_DESC])
+            ->limit(500)
+            ->asArray()
+            ->all();
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int)$row['id'],
+            'customer_name' => (string)$row['customer_name'],
+            'customer_code' => (string)$row['customer_code'],
+            'owner_user_id' => (int)$row['owner_user_id'],
+        ], $rows);
     }
 
     private function getUserOptions(): array

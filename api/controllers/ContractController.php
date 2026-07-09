@@ -6,6 +6,7 @@ namespace api\controllers;
 
 use common\models\AdProduct;
 use common\models\Contract;
+use common\models\ContractCost;
 use common\models\ContractProduct;
 use common\models\Customer;
 use common\models\Fulfillment;
@@ -36,6 +37,7 @@ class ContractController extends BaseController
         $contractNo = trim((string)Yii::$app->request->post('contract_no', ''));
         $customerId = (int)Yii::$app->request->post('customer_id', 0);
         $ownerUserId = (int)Yii::$app->request->post('owner_user_id', 0);
+        $contractType = (int)Yii::$app->request->post('contract_type', 0);
         $status = (int)Yii::$app->request->post('status', 0);
         $keyword = trim((string)Yii::$app->request->post('keyword', ''));
 
@@ -46,9 +48,11 @@ class ContractController extends BaseController
                 'customer_name' => new Expression("COALESCE(c.customer_name, '')"),
                 'customer_code' => new Expression("COALESCE(c.customer_code, '')"),
                 'owner_name' => new Expression("COALESCE(NULLIF(u.real_name, ''), u.username, '')"),
+                'parent_contract_name' => new Expression("COALESCE(p.contract_name, '')"),
             ])
             ->leftJoin(['c' => Customer::tableName()], 'c.id = ct.customer_id AND c.deleted = 0')
             ->leftJoin(['u' => User::tableName()], 'u.id = ct.owner_user_id')
+            ->leftJoin(['p' => Contract::tableName()], 'p.id = ct.parent_contract_id AND p.deleted = 0')
             ->where(['ct.deleted' => 0]);
 
         if ($contractNo !== '') {
@@ -59,6 +63,9 @@ class ContractController extends BaseController
         }
         if ($ownerUserId > 0) {
             $query->andWhere(['ct.owner_user_id' => $ownerUserId]);
+        }
+        if ($contractType > 0) {
+            $query->andWhere(['ct.contract_type' => $contractType]);
         }
         if ($status > 0) {
             $query->andWhere(['ct.status' => $status]);
@@ -95,6 +102,7 @@ class ContractController extends BaseController
             'customers' => $this->getCustomerOptions(),
             'products' => $this->getProductOptions(),
             'users' => $this->getUserOptions(),
+            'framework_contracts' => $this->getFrameworkContractOptions(),
         ];
     }
 
@@ -113,6 +121,7 @@ class ContractController extends BaseController
     {
         $contract = new Contract();
         $rows = $this->loadContract($contract);
+        $costRows = Yii::$app->request->post('costs', []);
         $planRows = Yii::$app->request->post('receivable_plans', []);
 
         $transaction = Yii::$app->db->beginTransaction();
@@ -121,8 +130,13 @@ class ContractController extends BaseController
                 throw new BadRequestHttpException($this->firstError($contract));
             }
             $this->saveProducts($contract, $rows);
+            $this->saveCosts($contract, is_array($costRows) ? array_values($costRows) : []);
             $this->refreshContractAmount($contract);
-            $this->saveReceivablePlans($contract, is_array($planRows) ? array_values($planRows) : []);
+            if ((int)$contract->contract_type === Contract::TYPE_FRAMEWORK) {
+                $this->clearReceivablePlans($contract);
+            } else {
+                $this->saveReceivablePlans($contract, is_array($planRows) ? array_values($planRows) : []);
+            }
             $transaction->commit();
         } catch (\Throwable $e) {
             $transaction->rollBack();
@@ -136,6 +150,7 @@ class ContractController extends BaseController
     {
         $contract = $this->findContract((int)Yii::$app->request->post('id', 0));
         $rows = $this->loadContract($contract);
+        $costRows = Yii::$app->request->post('costs', []);
         $planRows = Yii::$app->request->post('receivable_plans', []);
 
         $transaction = Yii::$app->db->beginTransaction();
@@ -144,8 +159,13 @@ class ContractController extends BaseController
                 throw new BadRequestHttpException($this->firstError($contract));
             }
             $this->saveProducts($contract, $rows);
+            $this->saveCosts($contract, is_array($costRows) ? array_values($costRows) : []);
             $this->refreshContractAmount($contract);
-            $this->saveReceivablePlans($contract, is_array($planRows) ? array_values($planRows) : []);
+            if ((int)$contract->contract_type === Contract::TYPE_FRAMEWORK) {
+                $this->clearReceivablePlans($contract);
+            } else {
+                $this->saveReceivablePlans($contract, is_array($planRows) ? array_values($planRows) : []);
+            }
             $transaction->commit();
         } catch (\Throwable $e) {
             $transaction->rollBack();
@@ -171,6 +191,10 @@ class ContractController extends BaseController
                 $product->markDeleted();
                 $product->save(false);
             }
+            foreach ($contract->costs as $cost) {
+                $cost->markDeleted();
+                $cost->save(false);
+            }
             $contract->markDeleted();
             $contract->save(false);
             $transaction->commit();
@@ -195,6 +219,7 @@ class ContractController extends BaseController
         $contract->customer_id = (int)($post['customer_id'] ?? 0);
         $contract->owner_user_id = (int)($post['owner_user_id'] ?? 0);
         $contract->contract_type = (int)($post['contract_type'] ?? 1);
+        $contract->parent_contract_id = (int)($post['parent_contract_id'] ?? 0);
         $contract->sign_date = trim((string)($post['sign_date'] ?? '')) ?: null;
         $contract->start_date = trim((string)($post['start_date'] ?? '')) ?: null;
         $contract->end_date = trim((string)($post['end_date'] ?? '')) ?: null;
@@ -204,7 +229,14 @@ class ContractController extends BaseController
         $contract->status = (int)($post['status'] ?? Contract::STATUS_DRAFT);
         $contract->approval_status = (int)($post['approval_status'] ?? $contract->approval_status);
         $contract->archive_status = (int)($post['archive_status'] ?? $contract->archive_status);
+        $contract->framework_scope = trim((string)($post['framework_scope'] ?? ''));
         $contract->remark = trim((string)($post['remark'] ?? ''));
+        if ((int)$contract->contract_type === Contract::TYPE_FRAMEWORK) {
+            $contract->parent_contract_id = 0;
+            $contract->discount_amount = 0;
+            $contract->tax_rate = 0;
+            $contract->invoice_amount = 0;
+        }
 
         if ($contract->contract_name === '') {
             throw new BadRequestHttpException('请输入合同名称');
@@ -221,6 +253,20 @@ class ContractController extends BaseController
         if (!User::find()->where(['id' => $contract->owner_user_id, 'status' => User::STATUS_ACTIVE])->exists()) {
             throw new BadRequestHttpException('负责人不存在或已禁用');
         }
+        if (!in_array((int)$contract->contract_type, [Contract::TYPE_SALES, Contract::TYPE_FRAMEWORK, Contract::TYPE_SUPPLEMENT], true)) {
+            throw new BadRequestHttpException('合同类型不正确');
+        }
+        if ((int)$contract->parent_contract_id > 0) {
+            $parentContract = Contract::findOne([
+                'id' => (int)$contract->parent_contract_id,
+                'customer_id' => (int)$contract->customer_id,
+                'contract_type' => Contract::TYPE_FRAMEWORK,
+                'deleted' => 0,
+            ]);
+            if ($parentContract === null || (int)$parentContract->id === (int)$contract->id) {
+                throw new BadRequestHttpException('关联框架协议不存在');
+            }
+        }
         if (!in_array($contract->status, [1, 2, 3, 4], true)) {
             throw new BadRequestHttpException('合同状态不正确');
         }
@@ -235,6 +281,9 @@ class ContractController extends BaseController
         }
 
         $rows = $post['products'] ?? [];
+        if ((int)$contract->contract_type === Contract::TYPE_FRAMEWORK) {
+            return [];
+        }
         if (!is_array($rows) || $rows === []) {
             throw new BadRequestHttpException('请至少添加一个合同产品');
         }
@@ -302,6 +351,70 @@ class ContractController extends BaseController
         }
     }
 
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     */
+    private function saveCosts(Contract $contract, array $rows): void
+    {
+        $keepIds = [];
+        foreach ($rows as $row) {
+            $id = (int)($row['id'] ?? 0);
+            $amount = round(max(0, (float)($row['amount'] ?? 0)), 2);
+            $costType = trim((string)($row['cost_type'] ?? ''));
+            $costDate = trim((string)($row['cost_date'] ?? ''));
+            $contractProductId = (int)($row['contract_product_id'] ?? 0);
+
+            if ($costType === '') {
+                throw new BadRequestHttpException('请选择成本类型');
+            }
+            if ($amount <= 0) {
+                throw new BadRequestHttpException('成本金额必须大于 0');
+            }
+
+            $contractProduct = null;
+            if ($contractProductId > 0) {
+                $contractProduct = ContractProduct::findOne([
+                    'id' => $contractProductId,
+                    'contract_id' => (int)$contract->id,
+                    'deleted' => 0,
+                ]);
+                if ($contractProduct === null) {
+                    throw new BadRequestHttpException('合同成本关联的产品不存在');
+                }
+            }
+
+            $cost = $id > 0
+                ? ContractCost::findOne(['id' => $id, 'contract_id' => $contract->id, 'deleted' => 0])
+                : new ContractCost();
+            if ($cost === null) {
+                throw new BadRequestHttpException('合同成本不存在');
+            }
+
+            $cost->contract_id = (int)$contract->id;
+            $cost->contract_product_id = $contractProductId;
+            $cost->cost_date = $costDate !== '' ? $costDate : null;
+            $cost->cost_type = $costType;
+            $cost->product_name = $contractProduct ? (string)$contractProduct->product_name : trim((string)($row['product_name'] ?? ''));
+            $cost->amount = $amount;
+            $cost->reason = trim((string)($row['reason'] ?? ''));
+            $cost->remark = trim((string)($row['remark'] ?? ''));
+
+            if (!$cost->save()) {
+                throw new BadRequestHttpException($this->firstContractCostError($cost));
+            }
+            $keepIds[] = (int)$cost->id;
+        }
+
+        $oldCosts = ContractCost::find()
+            ->where(['contract_id' => $contract->id, 'deleted' => 0])
+            ->andFilterWhere(['not in', 'id', $keepIds])
+            ->all();
+        foreach ($oldCosts as $oldCost) {
+            $oldCost->markDeleted();
+            $oldCost->save(false);
+        }
+    }
+
     private function refreshContractAmount(Contract $contract): void
     {
         $totalAmount = (float)ContractProduct::find()
@@ -313,6 +426,20 @@ class ContractController extends BaseController
         $contract->pending_amount = max(0, round((float)$contract->final_amount - (float)$contract->received_amount, 2));
         if (!$contract->save(false)) {
             throw new BadRequestHttpException('刷新合同金额失败');
+        }
+    }
+
+    private function clearReceivablePlans(Contract $contract): void
+    {
+        $plans = ReceivablePlan::find()
+            ->where(['contract_id' => $contract->id, 'deleted' => 0])
+            ->all();
+        foreach ($plans as $plan) {
+            if (ReceivableRecord::find()->where(['receivable_plan_id' => $plan->id, 'deleted' => 0])->exists()) {
+                throw new BadRequestHttpException('已有回款记录的计划不能从框架协议中删除');
+            }
+            $plan->markDeleted();
+            $plan->save(false);
         }
     }
 
@@ -413,10 +540,13 @@ class ContractController extends BaseController
         $row = $contract->toArray();
         $customer = $contract->customer;
         $owner = $contract->owner;
+        $parentContract = $contract->parentContract;
         $row['customer_name'] = $customer->customer_name ?? '';
         $row['customer_code'] = $customer->customer_code ?? '';
         $row['owner_name'] = $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
+        $row['parent_contract_name'] = $parentContract->contract_name ?? '';
         $row['products'] = array_map([$this, 'serializeProductArray'], $contract->products);
+        $row['costs'] = array_map([$this, 'serializeCostArray'], $contract->costs);
         $row['receivable_plans'] = array_map([$this, 'serializeReceivablePlanArray'], ReceivablePlan::find()
             ->where(['contract_id' => $contract->id, 'deleted' => 0])
             ->orderBy(['id' => SORT_ASC])
@@ -437,6 +567,8 @@ class ContractController extends BaseController
             'owner_user_id' => (int)($row['owner_user_id'] ?? 0),
             'owner_name' => (string)($row['owner_name'] ?? ''),
             'contract_type' => (int)($row['contract_type'] ?? 1),
+            'parent_contract_id' => (int)($row['parent_contract_id'] ?? 0),
+            'parent_contract_name' => (string)($row['parent_contract_name'] ?? ''),
             'sign_date' => $row['sign_date'] ?? null,
             'start_date' => $row['start_date'] ?? null,
             'end_date' => $row['end_date'] ?? null,
@@ -451,8 +583,10 @@ class ContractController extends BaseController
             'status' => (int)($row['status'] ?? 1),
             'approval_status' => (int)($row['approval_status'] ?? 0),
             'archive_status' => (int)($row['archive_status'] ?? 0),
+            'framework_scope' => (string)($row['framework_scope'] ?? ''),
             'remark' => (string)($row['remark'] ?? ''),
             'products' => $row['products'] ?? [],
+            'costs' => $row['costs'] ?? [],
             'receivable_plans' => $row['receivable_plans'] ?? [],
             'created_at' => (int)($row['created_at'] ?? 0),
             'updated_at' => (int)($row['updated_at'] ?? 0),
@@ -484,6 +618,25 @@ class ContractController extends BaseController
             'end_date' => $row['end_date'] ?? null,
             'delivery_requirements' => (string)($row['delivery_requirements'] ?? ''),
             'sort' => (int)($row['sort'] ?? 0),
+        ];
+    }
+
+    private function serializeCostArray(ContractCost|array $row): array
+    {
+        if ($row instanceof ContractCost) {
+            $row = $row->toArray();
+        }
+
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'contract_id' => (int)($row['contract_id'] ?? 0),
+            'contract_product_id' => (int)($row['contract_product_id'] ?? 0),
+            'cost_date' => $row['cost_date'] ?? null,
+            'cost_type' => (string)($row['cost_type'] ?? ''),
+            'product_name' => (string)($row['product_name'] ?? ''),
+            'amount' => (string)($row['amount'] ?? '0.00'),
+            'reason' => (string)($row['reason'] ?? ''),
+            'remark' => (string)($row['remark'] ?? ''),
         ];
     }
 
@@ -567,6 +720,36 @@ class ContractController extends BaseController
         ], $rows);
     }
 
+    private function getFrameworkContractOptions(): array
+    {
+        $rows = Contract::find()
+            ->alias('ct')
+            ->select([
+                'ct.id',
+                'ct.contract_no',
+                'ct.contract_name',
+                'ct.customer_id',
+                'customer_name' => new Expression("COALESCE(c.customer_name, '')"),
+            ])
+            ->leftJoin(['c' => Customer::tableName()], 'c.id = ct.customer_id AND c.deleted = 0')
+            ->where([
+                'ct.deleted' => 0,
+                'ct.contract_type' => Contract::TYPE_FRAMEWORK,
+            ])
+            ->orderBy(['ct.id' => SORT_DESC])
+            ->limit(500)
+            ->asArray()
+            ->all();
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int)$row['id'],
+            'contract_no' => (string)$row['contract_no'],
+            'contract_name' => (string)$row['contract_name'],
+            'customer_id' => (int)$row['customer_id'],
+            'customer_name' => (string)($row['customer_name'] ?? ''),
+        ], $rows);
+    }
+
     private function generateContractNo(): string
     {
         $prefix = 'HT' . date('Ymd');
@@ -603,5 +786,10 @@ class ContractController extends BaseController
     {
         $errors = $model->getFirstErrors();
         return reset($errors) ?: '回款计划保存失败';
+    }
+    private function firstContractCostError(ContractCost $model): string
+    {
+        $errors = $model->getFirstErrors();
+        return reset($errors) ?: '合同成本保存失败';
     }
 }

@@ -277,6 +277,44 @@ class MenuSeedController extends Controller
             ['删除联系人', 'customer.contact.delete', 60],
         ]);
 
+        $customerContact = $this->upsertMenu([
+            'parent_id' => $customer->id,
+            'type' => 2,
+            'title' => '联系人管理',
+            'name' => 'CustomerContact',
+            'path' => 'contact',
+            'component' => '/customer/contact',
+            'icon' => '',
+            'permission' => 'customer.view',
+            'sort' => 20,
+            'visible' => 1,
+            'keep_alive' => 1,
+        ]);
+        $this->upsertButtons($customerContact->id, [
+            ['新增联系人', 'customer.contact.create', 10],
+            ['修改联系人', 'customer.contact.update', 20],
+            ['删除联系人', 'customer.contact.delete', 30],
+        ]);
+
+        $customerFollow = $this->upsertMenu([
+            'parent_id' => $customer->id,
+            'type' => 2,
+            'title' => '跟进记录',
+            'name' => 'CustomerFollow',
+            'path' => 'follow',
+            'component' => '/customer/follow',
+            'icon' => '',
+            'permission' => 'customer.follow.view',
+            'sort' => 30,
+            'visible' => 1,
+            'keep_alive' => 1,
+        ]);
+        $this->upsertButtons($customerFollow->id, [
+            ['新增跟进', 'customer.follow.create', 10],
+            ['修改跟进', 'customer.follow.update', 20],
+            ['删除跟进', 'customer.follow.delete', 30],
+        ]);
+
         $product = $this->upsertMenu([
             'parent_id' => 0,
             'type' => 1,
@@ -572,15 +610,19 @@ class MenuSeedController extends Controller
      */
     private function findMenu(array $attributes): ?Menu
     {
-        if (!empty($attributes['permission'])) {
-            return Menu::find()
-                ->where(['permission' => $attributes['permission']])
-                ->one();
-        }
-
         if (!empty($attributes['name'])) {
             return Menu::find()
                 ->where(['name' => $attributes['name'], 'path' => $attributes['path'] ?? ''])
+                ->one();
+        }
+
+        if (!empty($attributes['permission'])) {
+            return Menu::find()
+                ->where([
+                    'parent_id' => $attributes['parent_id'] ?? 0,
+                    'type' => $attributes['type'] ?? 3,
+                    'permission' => $attributes['permission'],
+                ])
                 ->one();
         }
 

@@ -170,6 +170,10 @@ return [
                 'POST customer-contact/update' => 'customer-contact/update',
                 'POST customer-contact/delete' => 'customer-contact/delete',
                 'POST customer-contact/set-primary' => 'customer-contact/set-primary',
+                'POST customer-follow/index' => 'customer-follow/index',
+                'POST customer-follow/create' => 'customer-follow/create',
+                'POST customer-follow/update' => 'customer-follow/update',
+                'POST customer-follow/delete' => 'customer-follow/delete',
 
                 'POST product/index' => 'product/index',
                 'POST product/select-options' => 'product/select-options',

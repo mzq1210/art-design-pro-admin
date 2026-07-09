@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace api\controllers;
 
 use common\models\AdProduct;
+use common\models\Contract;
+use common\models\ContractProduct;
 use common\models\Customer;
+use common\models\Fulfillment;
 use common\models\Manuscript;
 use common\models\ManuscriptWriter;
 use common\models\User;
@@ -104,6 +107,9 @@ class ManuscriptController extends BaseController
         return [
             'customers' => $this->getCustomerOptions(),
             'products' => $this->getProductOptions(),
+            'contracts' => $this->getContractOptions(),
+            'contractProducts' => $this->getContractProductOptions(),
+            'fulfillments' => $this->getFulfillmentOptions(),
             'writers' => $this->getUserOptions(),
         ];
     }
@@ -402,6 +408,107 @@ class ManuscriptController extends BaseController
             'id' => (int)$row['id'],
             'product_name' => (string)($row['product_name'] ?? ''),
             'product_code' => (string)($row['product_code'] ?? ''),
+        ], $rows);
+    }
+
+    private function getContractOptions(): array
+    {
+        $rows = Contract::find()
+            ->select(['id', 'contract_no', 'contract_name', 'customer_id', 'owner_user_id'])
+            ->where(['deleted' => 0])
+            ->orderBy(['id' => SORT_DESC])
+            ->limit(500)
+            ->asArray()
+            ->all();
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int)$row['id'],
+            'contract_no' => (string)($row['contract_no'] ?? ''),
+            'contract_name' => (string)($row['contract_name'] ?? ''),
+            'customer_id' => (int)($row['customer_id'] ?? 0),
+            'owner_user_id' => (int)($row['owner_user_id'] ?? 0),
+        ], $rows);
+    }
+
+    private function getContractProductOptions(): array
+    {
+        $rows = ContractProduct::find()
+            ->alias('cp')
+            ->select([
+                'cp.id',
+                'cp.contract_id',
+                'cp.product_id',
+                'cp.product_name',
+                'cp.media_name',
+                'cp.ad_type',
+                'cp.quantity',
+                'contract_no' => new Expression("COALESCE(ct.contract_no, '')"),
+                'contract_name' => new Expression("COALESCE(ct.contract_name, '')"),
+                'customer_id' => new Expression('COALESCE(ct.customer_id, 0)'),
+                'customer_name' => new Expression("COALESCE(c.customer_name, '')"),
+                'product_code' => new Expression("COALESCE(p.product_code, '')"),
+            ])
+            ->leftJoin(['ct' => Contract::tableName()], 'ct.id = cp.contract_id AND ct.deleted = 0')
+            ->leftJoin(['c' => Customer::tableName()], 'c.id = ct.customer_id AND c.deleted = 0')
+            ->leftJoin(['p' => AdProduct::tableName()], 'p.id = cp.product_id AND p.deleted = 0')
+            ->where(['cp.deleted' => 0])
+            ->andWhere(['not', ['ct.id' => null]])
+            ->orderBy(['cp.id' => SORT_DESC])
+            ->limit(1000)
+            ->asArray()
+            ->all();
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int)$row['id'],
+            'contract_id' => (int)$row['contract_id'],
+            'contract_no' => (string)($row['contract_no'] ?? ''),
+            'contract_name' => (string)($row['contract_name'] ?? ''),
+            'customer_id' => (int)($row['customer_id'] ?? 0),
+            'customer_name' => (string)($row['customer_name'] ?? ''),
+            'product_id' => (int)$row['product_id'],
+            'product_name' => (string)($row['product_name'] ?? ''),
+            'product_code' => (string)($row['product_code'] ?? ''),
+            'media_name' => (string)($row['media_name'] ?? ''),
+            'ad_type' => (string)($row['ad_type'] ?? ''),
+            'quantity' => (string)($row['quantity'] ?? '0.00'),
+        ], $rows);
+    }
+
+    private function getFulfillmentOptions(): array
+    {
+        $rows = Fulfillment::find()
+            ->alias('f')
+            ->select([
+                'f.id',
+                'f.fulfillment_no',
+                'f.contract_id',
+                'f.contract_product_id',
+                'f.customer_id',
+                'f.product_id',
+                'f.status',
+                'customer_name' => new Expression("COALESCE(c.customer_name, '')"),
+                'product_name' => new Expression("COALESCE(p.product_name, '')"),
+                'product_code' => new Expression("COALESCE(p.product_code, '')"),
+            ])
+            ->leftJoin(['c' => Customer::tableName()], 'c.id = f.customer_id AND c.deleted = 0')
+            ->leftJoin(['p' => AdProduct::tableName()], 'p.id = f.product_id AND p.deleted = 0')
+            ->where(['f.deleted' => 0])
+            ->orderBy(['f.id' => SORT_DESC])
+            ->limit(1000)
+            ->asArray()
+            ->all();
+
+        return array_map(static fn (array $row): array => [
+            'id' => (int)$row['id'],
+            'fulfillment_no' => (string)($row['fulfillment_no'] ?? ''),
+            'contract_id' => (int)($row['contract_id'] ?? 0),
+            'contract_product_id' => (int)($row['contract_product_id'] ?? 0),
+            'customer_id' => (int)($row['customer_id'] ?? 0),
+            'customer_name' => (string)($row['customer_name'] ?? ''),
+            'product_id' => (int)($row['product_id'] ?? 0),
+            'product_name' => (string)($row['product_name'] ?? ''),
+            'product_code' => (string)($row['product_code'] ?? ''),
+            'status' => (int)($row['status'] ?? Fulfillment::STATUS_PENDING),
         ], $rows);
     }
 

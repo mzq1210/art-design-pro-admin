@@ -272,7 +272,8 @@ class ReceivableController extends BaseController
         $plan->plan_no = $planNo !== '' ? $planNo : ($plan->plan_no ?: $this->generatePlanNo());
         $plan->contract_id = (int)$contract->id;
         $plan->customer_id = (int)$contract->customer_id;
-        $plan->owner_user_id = (int)$contract->owner_user_id;
+        $ownerUserId = (int)($post['owner_user_id'] ?? 0);
+        $plan->owner_user_id = $ownerUserId > 0 ? $ownerUserId : (int)$contract->owner_user_id;
         $plan->plan_name = trim((string)($post['plan_name'] ?? '')) ?: $contract->contract_name . '-回款计划';
         $plan->plan_date = trim((string)($post['plan_date'] ?? '')) ?: null;
         $plan->plan_amount = max(0, (float)($post['plan_amount'] ?? 0));
@@ -284,6 +285,9 @@ class ReceivableController extends BaseController
 
         if ($plan->plan_amount <= 0) {
             throw new BadRequestHttpException('计划金额必须大于 0');
+        }
+        if ($plan->owner_user_id <= 0 || !User::find()->where(['id' => $plan->owner_user_id, 'status' => User::STATUS_ACTIVE])->exists()) {
+            throw new BadRequestHttpException('请选择有效负责人');
         }
         if (!in_array($plan->status, [1, 2, 3, 4], true)) {
             throw new BadRequestHttpException('计划状态不正确');
@@ -306,13 +310,18 @@ class ReceivableController extends BaseController
         if ((int)$plan->status === ReceivablePlan::STATUS_CANCELLED) {
             throw new BadRequestHttpException('已作废计划不能登记回款');
         }
+        $contractId = (int)($post['contract_id'] ?? 0);
+        if ($contractId > 0 && $contractId !== (int)$plan->contract_id) {
+            throw new BadRequestHttpException('回款计划与合同不匹配');
+        }
 
         $recordNo = trim((string)($post['record_no'] ?? ''));
         $record->record_no = $recordNo !== '' ? $recordNo : ($record->record_no ?: $this->generateRecordNo());
         $record->receivable_plan_id = (int)$plan->id;
         $record->contract_id = (int)$plan->contract_id;
         $record->customer_id = (int)$plan->customer_id;
-        $record->owner_user_id = (int)$plan->owner_user_id;
+        $ownerUserId = (int)($post['owner_user_id'] ?? 0);
+        $record->owner_user_id = $ownerUserId > 0 ? $ownerUserId : (int)$plan->owner_user_id;
         $record->receipt_date = trim((string)($post['receipt_date'] ?? '')) ?: date('Y-m-d');
         $record->receipt_amount = max(0, (float)($post['receipt_amount'] ?? 0));
         $record->receipt_method = trim((string)($post['receipt_method'] ?? ''));
@@ -325,6 +334,9 @@ class ReceivableController extends BaseController
 
         if ($record->receipt_amount <= 0) {
             throw new BadRequestHttpException('回款金额必须大于 0');
+        }
+        if ($record->owner_user_id <= 0 || !User::find()->where(['id' => $record->owner_user_id, 'status' => User::STATUS_ACTIVE])->exists()) {
+            throw new BadRequestHttpException('请选择有效负责人');
         }
         if (!in_array($record->status, [1, 2], true)) {
             throw new BadRequestHttpException('回款记录状态不正确');

@@ -54,6 +54,18 @@ class Customer extends ActiveRecord
             ->andWhere([CustomerContact::tableName() . '.deleted' => 0]);
     }
 
+    public function getFollows(): ActiveQuery
+    {
+        return $this->hasMany(CustomerFollow::class, ['customer_id' => 'id'])
+            ->andWhere([CustomerFollow::tableName() . '.deleted' => 0])
+            ->orderBy([CustomerFollow::tableName() . '.follow_time' => SORT_DESC]);
+    }
+
+    public function getOwner(): ActiveQuery
+    {
+        return $this->hasOne(User::class, ['id' => 'owner_user_id']);
+    }
+
     public function markDeleted(): void
     {
         $this->deleted = 1;

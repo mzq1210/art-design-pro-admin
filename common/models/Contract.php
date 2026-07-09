@@ -18,9 +18,9 @@ class Contract extends ActiveRecord
     public const STATUS_CANCELLED = 4;
 
 
-    public const TYPE_INCOME = 1;
-    public const TYPE_EXPENSE = 2;
-    public const TYPE_NO_AMOUNT = 3;
+    public const TYPE_SALES = 1;
+    public const TYPE_FRAMEWORK = 2;
+    public const TYPE_SUPPLEMENT = 3;
 
 
     public static function tableName(): string
@@ -48,9 +48,10 @@ class Contract extends ActiveRecord
     {
         return [
             [['contract_no', 'contract_name', 'customer_id', 'owner_user_id'], 'required'],
-            [['customer_id', 'owner_user_id', 'contract_type', 'status', 'approval_status', 'archive_status', 'created_by', 'updated_by', 'deleted', 'deleted_at', 'created_at', 'updated_at'], 'integer'],
+            [['customer_id', 'owner_user_id', 'contract_type', 'parent_contract_id', 'status', 'approval_status', 'archive_status', 'created_by', 'updated_by', 'deleted', 'deleted_at', 'created_at', 'updated_at'], 'integer'],
             [['sign_date', 'start_date', 'end_date'], 'safe'],
             [['total_amount', 'discount_amount', 'tax_rate', 'tax_amount', 'final_amount', 'received_amount', 'pending_amount', 'invoice_amount'], 'number'],
+            [['framework_scope'], 'string'],
             [['contract_no'], 'string', 'max' => 50],
             [['contract_name'], 'string', 'max' => 150],
             [['remark'], 'string', 'max' => 500],
@@ -60,9 +61,9 @@ class Contract extends ActiveRecord
     public static function typeOptions(): array
     {
         return [
-            self::TYPE_INCOME => '收入',
-            self::TYPE_EXPENSE => '支出',
-            self::TYPE_NO_AMOUNT => '无金额',
+            self::TYPE_SALES => '销售合同',
+            self::TYPE_FRAMEWORK => '框架协议',
+            self::TYPE_SUPPLEMENT => '补充协议',
         ];
     }
 
@@ -76,11 +77,23 @@ class Contract extends ActiveRecord
         return $this->hasOne(User::class, ['id' => 'owner_user_id']);
     }
 
+    public function getParentContract(): ActiveQuery
+    {
+        return $this->hasOne(self::class, ['id' => 'parent_contract_id']);
+    }
+
     public function getProducts(): ActiveQuery
     {
         return $this->hasMany(ContractProduct::class, ['contract_id' => 'id'])
             ->andWhere([ContractProduct::tableName() . '.deleted' => 0])
             ->orderBy([ContractProduct::tableName() . '.sort' => SORT_ASC, ContractProduct::tableName() . '.id' => SORT_ASC]);
+    }
+
+    public function getCosts(): ActiveQuery
+    {
+        return $this->hasMany(ContractCost::class, ['contract_id' => 'id'])
+            ->andWhere([ContractCost::tableName() . '.deleted' => 0])
+            ->orderBy([ContractCost::tableName() . '.cost_date' => SORT_ASC, ContractCost::tableName() . '.id' => SORT_ASC]);
     }
 
     public function markDeleted(): void

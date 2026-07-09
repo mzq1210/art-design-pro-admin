@@ -26,9 +26,10 @@ return [
         ],
         'redis' => [
             'class' => yii\redis\Connection::class,
-            'hostname' => 'localhost',
+            'hostname' => '47.92.37.192',
             'port' => 6379,
-            'database' => 0,
+            'password' => 'nc123456',
+            'database' => 8,
         ],
         'queue' => [
             'class' => yii\queue\redis\Queue::class,
