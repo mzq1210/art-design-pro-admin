@@ -48,6 +48,40 @@ class Customer extends ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'customer_name',
+            'customer_code',
+            'customer_type' => static fn(self $model): int => (int)$model->customer_type,
+            'industry' => static fn(self $model): string => (string)$model->industry,
+            'level' => static fn(self $model): int => (int)$model->level,
+            'status' => static fn(self $model): int => (int)$model->status,
+            'owner_user_id' => static fn(self $model): int => (int)$model->owner_user_id,
+            'owner_name' => static function (self $model): string {
+                $owner = $model->owner;
+                return $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
+            },
+            'owner_mobile' => static fn(self $model): string => $model->owner->mobile ?? '',
+            'company_address' => static fn(self $model): string => (string)$model->company_address,
+            'website' => static fn(self $model): string => (string)$model->website,
+            'taxpayer_no' => static fn(self $model): string => (string)$model->taxpayer_no,
+            'bank_name' => static fn(self $model): string => (string)$model->bank_name,
+            'bank_account' => static fn(self $model): string => (string)$model->bank_account,
+            'invoice_title' => static fn(self $model): string => (string)$model->invoice_title,
+            'cooperation_start_date',
+            'source' => static fn(self $model): string => (string)$model->source,
+            'follow_status' => static fn(self $model): int => (int)$model->follow_status,
+            'latest_follow_time' => static fn(self $model): int => (int)$model->latest_follow_time,
+            'signed_contract_amount' => static fn(self $model): string => (string)$model->signed_contract_amount,
+            'received_amount' => static fn(self $model): string => (string)$model->received_amount,
+            'remark' => static fn(self $model): string => (string)$model->remark,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
+
     public function getContacts(): ActiveQuery
     {
         return $this->hasMany(CustomerContact::class, ['customer_id' => 'id'])

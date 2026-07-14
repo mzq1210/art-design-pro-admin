@@ -50,4 +50,26 @@ class OperationLog extends ActiveRecord
             [['username', 'controller', 'action', 'route', 'permission', 'method', 'ip', 'user_agent', 'message'], 'string'],
         ];
     }
+
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'user_id' => static fn(self $model): int => (int)$model->user_id,
+            'username',
+            'controller',
+            'action',
+            'route',
+            'permission',
+            'method',
+            'ip',
+            'user_agent',
+            'request_data' => static fn(self $model): string => $model->request_data ?: '{}',
+            'response_code' => static fn(self $model): int => (int)$model->response_code,
+            'message',
+            'status' => static fn(self $model): int => (int)$model->status,
+            'duration' => static fn(self $model): int => (int)$model->duration,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+        ];
+    }
 }

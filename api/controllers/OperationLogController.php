@@ -51,7 +51,7 @@ class OperationLogController extends BaseController
             ->all();
 
         return [
-            'records' => array_map([$this, 'serializeLog'], $records),
+            'records' => array_map(static fn(OperationLog $model): array => $model->toArray(), $records),
             'current' => $page,
             'size' => $size,
             'total' => $total,
@@ -85,27 +85,5 @@ class OperationLogController extends BaseController
         }
 
         return $model;
-    }
-
-    private function serializeLog(OperationLog $model): array
-    {
-        return [
-            'id' => (int)$model->id,
-            'user_id' => (int)$model->user_id,
-            'username' => $model->username,
-            'controller' => $model->controller,
-            'action' => $model->action,
-            'route' => $model->route,
-            'permission' => $model->permission,
-            'method' => $model->method,
-            'ip' => $model->ip,
-            'user_agent' => $model->user_agent,
-            'request_data' => $model->request_data ?: '{}',
-            'response_code' => (int)$model->response_code,
-            'message' => $model->message,
-            'status' => (int)$model->status,
-            'duration' => (int)$model->duration,
-            'created_at' => (int)$model->created_at,
-        ];
     }
 }

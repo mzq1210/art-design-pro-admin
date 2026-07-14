@@ -93,7 +93,7 @@ class CustomerFollowController extends BaseController
 
         $this->refreshCustomerFollow($model);
 
-        return $this->serializeFollow($model);
+        return $model->toArray();
     }
 
     public function actionUpdate(): array
@@ -107,7 +107,7 @@ class CustomerFollowController extends BaseController
 
         $this->refreshCustomerFollow($model);
 
-        return $this->serializeFollow($model);
+        return $model->toArray();
     }
 
     public function actionDelete(): array
@@ -201,19 +201,6 @@ class CustomerFollowController extends BaseController
         }
 
         return $model;
-    }
-
-    private function serializeFollow(CustomerFollow $model): array
-    {
-        $row = $model->toArray();
-        $row['customer_name'] = $model->customer->customer_name ?? '';
-        $row['customer_code'] = $model->customer->customer_code ?? '';
-        $row['contact_name'] = $model->contact->contact_name ?? '';
-        $row['contact_mobile'] = $model->contact->mobile ?? '';
-        $owner = $model->owner;
-        $row['owner_name'] = $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
-
-        return $this->serializeFollowArray($row);
     }
 
     private function serializeFollowArray(array $row): array

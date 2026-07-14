@@ -46,6 +46,20 @@ class DictType extends ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'name',
+            'code',
+            'status' => static fn(self $model): int => (int)$model->status,
+            'sort' => static fn(self $model): int => (int)$model->sort,
+            'remark' => static fn(self $model): string => (string)$model->remark,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
+
     public function getItems(): ActiveQuery
     {
         return $this->hasMany(DictItem::class, ['type_id' => 'id']);

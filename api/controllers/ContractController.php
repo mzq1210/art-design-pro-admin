@@ -102,6 +102,7 @@ class ContractController extends BaseController
             'customers' => $this->getCustomerOptions(),
             'products' => $this->getProductOptions(),
             'users' => $this->getUserOptions(),
+            'type_options' => Contract::typeOptions(),
             'framework_contracts' => $this->getFrameworkContractOptions(),
         ];
     }

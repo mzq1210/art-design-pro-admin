@@ -123,7 +123,7 @@ class FulfillmentController extends BaseController
 
     public function actionView(): array
     {
-        return $this->serializeFulfillment($this->findFulfillment((int)Yii::$app->request->post('id', 0)));
+        return $this->findFulfillment((int)Yii::$app->request->post('id', 0))->toArray();
     }
 
     public function actionExecutions(): array
@@ -155,7 +155,7 @@ class FulfillmentController extends BaseController
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeFulfillment($model);
+        return $model->toArray();
     }
 
     public function actionUpdate(): array
@@ -167,7 +167,7 @@ class FulfillmentController extends BaseController
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeFulfillment($model);
+        return $model->toArray();
     }
 
     public function actionDelete(): array
@@ -216,7 +216,7 @@ class FulfillmentController extends BaseController
             throw $e;
         }
 
-        return $this->serializeFulfillment($fulfillment);
+        return $fulfillment->toArray();
     }
 
     private function loadFulfillment(Fulfillment $model): void
@@ -391,22 +391,6 @@ class FulfillmentController extends BaseController
         }
 
         return $model;
-    }
-
-    private function serializeFulfillment(Fulfillment $model): array
-    {
-        $row = $model->toArray();
-        $customer = $model->customer_id > 0 ? Customer::findOne($model->customer_id) : null;
-        $product = $model->product_id > 0 ? AdProduct::findOne($model->product_id) : null;
-        $owner = $model->owner_user_id > 0 ? User::findOne($model->owner_user_id) : null;
-        $completedBy = $model->completed_by > 0 ? User::findOne($model->completed_by) : null;
-        $row['customer_name'] = $customer->customer_name ?? '';
-        $row['product_name'] = $product->product_name ?? '';
-        $row['product_code'] = $product->product_code ?? '';
-        $row['owner_name'] = $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
-        $row['completed_by_name'] = $completedBy ? ((string)$completedBy->real_name !== '' ? $completedBy->real_name : $completedBy->username) : '';
-
-        return $this->serializeFulfillmentArray($row);
     }
 
     private function serializeFulfillmentArray(array $row): array

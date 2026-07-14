@@ -121,7 +121,7 @@ class CustomerController extends BaseController
         $manuscripts = $this->getManuscripts((int)$model->id);
 
         return [
-            'customer' => $this->serializeCustomer($model),
+            'customer' => $model->toArray(),
             'stats' => [
                 'contract_count' => count($contracts),
                 'contract_amount' => (string)array_sum(array_map(static fn (array $row): float => (float)($row['final_amount'] ?? 0), $contracts)),
@@ -176,7 +176,7 @@ class CustomerController extends BaseController
             throw $e;
         }
 
-        return $this->serializeCustomer($model);
+        return $model->toArray();
     }
 
     public function actionUpdate(): array
@@ -188,7 +188,7 @@ class CustomerController extends BaseController
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeCustomer($model);
+        return $model->toArray();
     }
 
     public function actionDelete(): array
@@ -294,16 +294,6 @@ class CustomerController extends BaseController
         }
 
         return $model;
-    }
-
-    private function serializeCustomer(Customer $model): array
-    {
-        $row = $model->toArray();
-        $owner = $model->owner_user_id > 0 ? User::findOne($model->owner_user_id) : null;
-        $row['owner_name'] = $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
-        $row['owner_mobile'] = $owner->mobile ?? '';
-
-        return $this->serializeCustomerArray($row);
     }
 
     private function serializeCustomerArray(array $row): array

@@ -25,7 +25,7 @@ class FileService
             $query->andWhere(['or', ['like', 'name', $keyword], ['like', 'code', $keyword]]);
         }
 
-        $records = array_map([$this, 'serializeGroup'], $query->all());
+        $records = array_map(static fn(FileGroup $model): array => $model->toArray(), $query->all());
 
         return [
             'records' => $records,
@@ -44,7 +44,7 @@ class FileService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeGroup($model);
+        return $model->toArray();
     }
 
     public function updateGroup(int $id, array $data): array
@@ -56,7 +56,7 @@ class FileService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeGroup($model);
+        return $model->toArray();
     }
 
     public function deleteGroup(int $id): array
@@ -93,7 +93,7 @@ class FileService
             ->all();
 
         return [
-            'records' => array_map([$this, 'serializeFile'], $records),
+            'records' => array_map(static fn(FileAttachment $model): array => $model->toArray(), $records),
             'current' => $page,
             'size' => $size,
             'total' => $total,
@@ -148,7 +148,7 @@ class FileService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeFile($model);
+        return $model->toArray();
     }
 
     public function update(int $id, array $data): array
@@ -167,7 +167,7 @@ class FileService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeFile($model);
+        return $model->toArray();
     }
 
     public function delete(int $id): array
@@ -220,39 +220,6 @@ class FileService
         $scene = preg_replace('/[^a-z0-9_-]/', '', $scene) ?: 'attachment';
 
         return substr($scene, 0, 32);
-    }
-
-    private function serializeGroup(FileGroup $model): array
-    {
-        return [
-            'id' => (int)$model->id,
-            'name' => $model->name,
-            'code' => $model->code,
-            'sort' => (int)$model->sort,
-            'remark' => $model->remark ?: '',
-            'created_at' => (int)$model->created_at,
-            'updated_at' => (int)$model->updated_at,
-        ];
-    }
-
-    private function serializeFile(FileAttachment $model): array
-    {
-        return [
-            'id' => (int)$model->id,
-            'group_id' => (int)$model->group_id,
-            'scene' => $model->scene,
-            'name' => $model->name,
-            'storage_name' => $model->storage_name,
-            'path' => $model->path,
-            'url' => $model->url,
-            'extension' => $model->extension,
-            'mime_type' => $model->mime_type,
-            'size' => (int)$model->size,
-            'remark' => $model->remark ?: '',
-            'created_by' => (int)$model->created_by,
-            'created_at' => (int)$model->created_at,
-            'updated_at' => (int)$model->updated_at,
-        ];
     }
 
     private function firstError(FileGroup|FileAttachment $model): string

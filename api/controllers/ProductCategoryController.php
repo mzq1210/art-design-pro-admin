@@ -89,7 +89,7 @@ class ProductCategoryController extends BaseController
 
     public function actionView(): array
     {
-        return $this->serializeCategory($this->findCategory((int)Yii::$app->request->post('id', 0)));
+        return $this->findCategory((int)Yii::$app->request->post('id', 0))->toArray();
     }
 
     public function actionCreate(): array
@@ -101,7 +101,7 @@ class ProductCategoryController extends BaseController
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeCategory($model);
+        return $model->toArray();
     }
 
     public function actionUpdate(): array
@@ -113,7 +113,7 @@ class ProductCategoryController extends BaseController
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeCategory($model);
+        return $model->toArray();
     }
 
     public function actionDelete(): array
@@ -268,11 +268,6 @@ class ProductCategoryController extends BaseController
         unset($node);
 
         return array_values($tree);
-    }
-
-    private function serializeCategory(ProductCategory $model): array
-    {
-        return $this->serializeCategoryArray($model->toArray());
     }
 
     private function serializeCategoryArray(array $row): array

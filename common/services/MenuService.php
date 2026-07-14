@@ -25,7 +25,7 @@ class MenuService
             ]);
         }
 
-        $records = array_map([$this, 'serializeMenu'], $query->all());
+        $records = array_map(static fn(Menu $menu): array => $menu->toArray(), $query->all());
 
         return [
             'records' => $records,
@@ -42,7 +42,7 @@ class MenuService
             ->all();
 
         return [
-            'records' => $this->buildTree(array_map([$this, 'serializeMenu'], $records)),
+            'records' => $this->buildTree(array_map(static fn(Menu $menu): array => $menu->toArray(), $records)),
         ];
     }
 
@@ -58,7 +58,7 @@ class MenuService
         $this->syncPermission($model);
         $this->invalidateMenuCache();
 
-        return $this->serializeMenu($model);
+        return $model->toArray();
     }
 
     public function update(int $id, array $data): array
@@ -73,7 +73,7 @@ class MenuService
         $this->syncPermission($model);
         $this->invalidateMenuCache();
 
-        return $this->serializeMenu($model);
+        return $model->toArray();
     }
 
     public function delete(int $id): array
@@ -128,29 +128,6 @@ class MenuService
         }
 
         return $model;
-    }
-
-    private function serializeMenu(Menu $menu): array
-    {
-        return [
-            'id' => (int)$menu->id,
-            'parent_id' => (int)$menu->parent_id,
-            'type' => (int)$menu->type,
-            'title' => $menu->title,
-            'name' => $menu->name,
-            'path' => $menu->path,
-            'component' => $menu->component,
-            'icon' => $menu->icon,
-            'permission' => $menu->permission,
-            'sort' => (int)$menu->sort,
-            'visible' => (int)$menu->visible,
-            'keep_alive' => (int)$menu->keep_alive,
-            'is_external' => (int)$menu->is_external,
-            'external_url' => $menu->external_url,
-            'remark' => $menu->remark,
-            'created_at' => $menu->created_at === null ? null : (int)$menu->created_at,
-            'updated_at' => $menu->updated_at === null ? null : (int)$menu->updated_at,
-        ];
     }
 
     private function buildTree(array $records, int $parentId = 0): array

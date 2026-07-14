@@ -110,7 +110,7 @@ class ProductController extends BaseController
 
     public function actionView(): array
     {
-        return $this->serializeProduct($this->findProduct((int)Yii::$app->request->post('id', 0)));
+        return $this->findProduct((int)Yii::$app->request->post('id', 0))->toArray();
     }
 
     public function actionCreate(): array
@@ -122,7 +122,7 @@ class ProductController extends BaseController
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeProduct($model);
+        return $model->toArray();
     }
 
     public function actionUpdate(): array
@@ -134,7 +134,7 @@ class ProductController extends BaseController
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeProduct($model);
+        return $model->toArray();
     }
 
     public function actionDelete(): array
@@ -218,16 +218,6 @@ class ProductController extends BaseController
         }
 
         return $model;
-    }
-
-    private function serializeProduct(AdProduct $model): array
-    {
-        $row = $model->toArray();
-        $category = $model->category_id > 0 ? ProductCategory::findOne($model->category_id) : null;
-        $row['category_name'] = $category->category_name ?? '';
-        $row['category_code'] = $category->category_code ?? '';
-
-        return $this->serializeProductArray($row);
     }
 
     private function serializeProductArray(array $row): array

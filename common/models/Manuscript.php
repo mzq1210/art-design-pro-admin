@@ -48,6 +48,28 @@ class Manuscript extends ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'manuscript_no',
+            'manuscript_type' => static fn(self $model): int => (int)$model->manuscript_type,
+            'customer_id' => static fn(self $model): int => (int)$model->customer_id,
+            'customer_name' => static fn(self $model): string => $model->customer->customer_name ?? '',
+            'contract_id' => static fn(self $model): int => (int)$model->contract_id,
+            'fulfillment_id' => static fn(self $model): int => (int)$model->fulfillment_id,
+            'contract_product_id' => static fn(self $model): int => (int)$model->contract_product_id,
+            'product_id' => static fn(self $model): int => (int)$model->product_id,
+            'product_name' => static fn(self $model): string => $model->product->product_name ?? '',
+            'product_code' => static fn(self $model): string => $model->product->product_code ?? '',
+            'title',
+            'article_link',
+            'remark' => static fn(self $model): string => (string)$model->remark,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
+
     public function getCustomer(): ActiveQuery
     {
         return $this->hasOne(Customer::class, ['id' => 'customer_id']);

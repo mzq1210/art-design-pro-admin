@@ -45,6 +45,26 @@ class CustomerContact extends ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'customer_id' => static fn(self $model): int => (int)$model->customer_id,
+            'customer_name' => static fn(self $model): string => $model->customer->customer_name ?? '',
+            'customer_code' => static fn(self $model): string => $model->customer->customer_code ?? '',
+            'contact_name',
+            'mobile',
+            'wechat' => static fn(self $model): string => (string)$model->wechat,
+            'email' => static fn(self $model): string => (string)$model->email,
+            'position' => static fn(self $model): string => (string)$model->position,
+            'is_primary' => static fn(self $model): int => (int)$model->is_primary,
+            'status' => static fn(self $model): int => (int)$model->status,
+            'remark' => static fn(self $model): string => (string)$model->remark,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
+
     public function getCustomer(): ActiveQuery
     {
         return $this->hasOne(Customer::class, ['id' => 'customer_id']);

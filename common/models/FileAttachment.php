@@ -52,4 +52,24 @@ class FileAttachment extends ActiveRecord
             [['extension', 'mime_type', 'remark'], 'default', 'value' => ''],
         ];
     }
+
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'group_id' => static fn(self $model): int => (int)$model->group_id,
+            'scene',
+            'name',
+            'storage_name',
+            'path',
+            'url',
+            'extension',
+            'mime_type',
+            'size' => static fn(self $model): int => (int)$model->size,
+            'remark' => static fn(self $model): string => (string)$model->remark,
+            'created_by' => static fn(self $model): int => (int)$model->created_by,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
 }

@@ -60,6 +60,29 @@ class OaEmployee extends ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'user_id' => static fn(self $model): int => (int)$model->user_id,
+            'username' => static fn(self $model): string => $model->user->username ?? '',
+            'dingtalk_userid',
+            'unionid',
+            'name',
+            'mobile',
+            'email',
+            'avatar',
+            'department_ids' => static fn(self $model): array => json_decode((string)$model->department_ids, true) ?: [],
+            'department_names',
+            'position',
+            'job_number',
+            'status' => static fn(self $model): int => (int)$model->status,
+            'synced_at' => static fn(self $model): int => (int)$model->synced_at,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
+
     public function getUser(): ActiveQuery
     {
         return $this->hasOne(User::class, ['id' => 'user_id']);

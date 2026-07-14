@@ -159,7 +159,7 @@ class ReceivableController extends BaseController
 
     public function actionPlanView(): array
     {
-        return $this->serializePlan($this->findPlan((int)Yii::$app->request->post('id', 0)));
+        return $this->findPlan((int)Yii::$app->request->post('id', 0))->toArray();
     }
 
     public function actionPlanCreate(): array
@@ -171,7 +171,7 @@ class ReceivableController extends BaseController
             throw new BadRequestHttpException($this->firstPlanError($plan));
         }
 
-        return $this->serializePlan($plan);
+        return $plan->toArray();
     }
 
     public function actionPlanUpdate(): array
@@ -183,7 +183,7 @@ class ReceivableController extends BaseController
             throw new BadRequestHttpException($this->firstPlanError($plan));
         }
 
-        return $this->serializePlan($plan);
+        return $plan->toArray();
     }
 
     public function actionPlanDelete(): array
@@ -216,7 +216,7 @@ class ReceivableController extends BaseController
             throw $e;
         }
 
-        return $this->serializeRecord($record);
+        return $record->toArray();
     }
 
     public function actionRecordUpdate(): array
@@ -238,7 +238,7 @@ class ReceivableController extends BaseController
             throw $e;
         }
 
-        return $this->serializeRecord($record);
+        return $record->toArray();
     }
 
     public function actionRecordDelete(): array
@@ -423,18 +423,6 @@ class ReceivableController extends BaseController
         return $model;
     }
 
-    private function serializePlan(ReceivablePlan $plan): array
-    {
-        $row = $plan->toArray();
-        $row['contract_no'] = $plan->contract->contract_no ?? '';
-        $row['contract_name'] = $plan->contract->contract_name ?? '';
-        $row['customer_name'] = $plan->customer->customer_name ?? '';
-        $owner = User::findOne($plan->owner_user_id);
-        $row['owner_name'] = $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
-
-        return $this->serializePlanArray($row);
-    }
-
     private function serializePlanArray(array $row): array
     {
         return [
@@ -459,21 +447,6 @@ class ReceivableController extends BaseController
             'created_at' => (int)($row['created_at'] ?? 0),
             'updated_at' => (int)($row['updated_at'] ?? 0),
         ];
-    }
-
-    private function serializeRecord(ReceivableRecord $record): array
-    {
-        $row = $record->toArray();
-        $row['plan_no'] = $record->plan->plan_no ?? '';
-        $row['plan_name'] = $record->plan->plan_name ?? '';
-        $row['contract_no'] = $record->contract->contract_no ?? '';
-        $row['contract_name'] = $record->contract->contract_name ?? '';
-        $customer = Customer::findOne($record->customer_id);
-        $owner = User::findOne($record->owner_user_id);
-        $row['customer_name'] = $customer->customer_name ?? '';
-        $row['owner_name'] = $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
-
-        return $this->serializeRecordArray($row);
     }
 
     private function serializeRecordArray(array $row): array

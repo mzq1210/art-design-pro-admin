@@ -48,6 +48,32 @@ class CustomerFollow extends ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'customer_id' => static fn(self $model): int => (int)$model->customer_id,
+            'customer_name' => static fn(self $model): string => $model->customer->customer_name ?? '',
+            'customer_code' => static fn(self $model): string => $model->customer->customer_code ?? '',
+            'contact_id' => static fn(self $model): int => (int)$model->contact_id,
+            'contact_name' => static fn(self $model): string => $model->contact->contact_name ?? '',
+            'contact_mobile' => static fn(self $model): string => $model->contact->mobile ?? '',
+            'owner_user_id' => static fn(self $model): int => (int)$model->owner_user_id,
+            'owner_name' => static function (self $model): string {
+                $owner = $model->owner;
+                return $owner ? ((string)$owner->real_name !== '' ? $owner->real_name : $owner->username) : '';
+            },
+            'follow_time' => static fn(self $model): int => (int)$model->follow_time,
+            'follow_type' => static fn(self $model): int => (int)$model->follow_type,
+            'follow_status' => static fn(self $model): int => (int)$model->follow_status,
+            'next_follow_time' => static fn(self $model): int => (int)$model->next_follow_time,
+            'content',
+            'result' => static fn(self $model): string => (string)$model->result,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
+
     public function getCustomer(): ActiveQuery
     {
         return $this->hasOne(Customer::class, ['id' => 'customer_id']);

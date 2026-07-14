@@ -51,4 +51,23 @@ class QueueTask extends ActiveRecord
             [['name'], 'string', 'max' => 100],
         ];
     }
+
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'job_id',
+            'name',
+            'payload' => static fn(self $model): string => $model->payload ?: '{}',
+            'result' => static fn(self $model): string => $model->result ?: '',
+            'status' => static fn(self $model): int => (int)$model->status,
+            'attempts' => static fn(self $model): int => (int)$model->attempts,
+            'error' => static fn(self $model): string => $model->error ?: '',
+            'created_by' => static fn(self $model): int => (int)$model->created_by,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'started_at' => static fn(self $model): ?int => $model->started_at ? (int)$model->started_at : null,
+            'finished_at' => static fn(self $model): ?int => $model->finished_at ? (int)$model->finished_at : null,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
 }

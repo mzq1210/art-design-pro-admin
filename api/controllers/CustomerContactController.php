@@ -67,7 +67,7 @@ class CustomerContactController extends BaseController
             throw $e;
         }
 
-        return $this->serializeContact($model);
+        return $model->toArray();
     }
 
     public function actionUpdate(): array
@@ -94,7 +94,7 @@ class CustomerContactController extends BaseController
             throw $e;
         }
 
-        return $this->serializeContact($model);
+        return $model->toArray();
     }
 
     public function actionSetPrimary(): array
@@ -105,7 +105,7 @@ class CustomerContactController extends BaseController
         $model->is_primary = 1;
         $model->save(false);
 
-        return $this->serializeContact($model);
+        return $model->toArray();
     }
 
     public function actionDelete(): array
@@ -163,16 +163,6 @@ class CustomerContactController extends BaseController
         }
 
         return $model;
-    }
-
-    private function serializeContact(CustomerContact $model): array
-    {
-        $row = $model->toArray();
-        $customer = Customer::findOne($model->customer_id);
-        $row['customer_name'] = $customer->customer_name ?? '';
-        $row['customer_code'] = $customer->customer_code ?? '';
-
-        return $this->serializeContactArray($row);
     }
 
     private function serializeContactArray(array $row): array

@@ -19,7 +19,7 @@ class DictService
             $query->andWhere(['or', ['like', 'name', $keyword], ['like', 'code', $keyword]]);
         }
 
-        $records = array_map([$this, 'serializeType'], $query->all());
+        $records = array_map(static fn(DictType $model): array => $model->toArray(), $query->all());
 
         return [
             'records' => $records,
@@ -38,7 +38,7 @@ class DictService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeType($model);
+        return $model->toArray();
     }
 
     public function updateType(int $id, array $data): array
@@ -50,7 +50,7 @@ class DictService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeType($model);
+        return $model->toArray();
     }
 
     public function deleteType(int $id): array
@@ -79,7 +79,7 @@ class DictService
             $query->andWhere(['or', ['like', 'label', $keyword], ['like', 'value', $keyword]]);
         }
 
-        $records = array_map([$this, 'serializeItem'], $query->all());
+        $records = array_map(static fn(DictItem $model): array => $model->toArray(), $query->all());
 
         return [
             'records' => $records,
@@ -98,7 +98,7 @@ class DictService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeItem($model);
+        return $model->toArray();
     }
 
     public function updateItem(int $id, array $data): array
@@ -110,7 +110,7 @@ class DictService
             throw new BadRequestHttpException($this->firstError($model));
         }
 
-        return $this->serializeItem($model);
+        return $model->toArray();
     }
 
     public function deleteItem(int $id): array
@@ -141,7 +141,7 @@ class DictService
             ->all();
 
         return [
-            'records' => array_map([$this, 'serializeItem'], $items),
+            'records' => array_map(static fn(DictItem $model): array => $model->toArray(), $items),
         ];
     }
 
@@ -182,35 +182,6 @@ class DictService
         }
 
         return $model;
-    }
-
-    private function serializeType(DictType $model): array
-    {
-        return [
-            'id' => (int)$model->id,
-            'name' => $model->name,
-            'code' => $model->code,
-            'status' => (int)$model->status,
-            'sort' => (int)$model->sort,
-            'remark' => $model->remark ?: '',
-            'created_at' => (int)$model->created_at,
-            'updated_at' => (int)$model->updated_at,
-        ];
-    }
-
-    private function serializeItem(DictItem $model): array
-    {
-        return [
-            'id' => (int)$model->id,
-            'type_id' => (int)$model->type_id,
-            'label' => $model->label,
-            'value' => $model->value,
-            'status' => (int)$model->status,
-            'sort' => (int)$model->sort,
-            'remark' => $model->remark ?: '',
-            'created_at' => (int)$model->created_at,
-            'updated_at' => (int)$model->updated_at,
-        ];
     }
 
     private function firstError(DictType|DictItem $model): string

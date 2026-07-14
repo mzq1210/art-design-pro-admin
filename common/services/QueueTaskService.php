@@ -31,7 +31,7 @@ class QueueTaskService
             ->all();
 
         return [
-            'records' => array_map([$this, 'serializeTask'], $records),
+            'records' => array_map(static fn(QueueTask $model): array => $model->toArray(), $records),
             'current' => $page,
             'size' => $size,
             'total' => $total,
@@ -54,7 +54,7 @@ class QueueTaskService
         $task->job_id = (string)$jobId;
         $task->save(false);
 
-        return $this->serializeTask($task);
+        return $task->toArray();
     }
 
     public function retry(int $id): array
@@ -73,7 +73,7 @@ class QueueTaskService
         $task->job_id = (string)$jobId;
         $task->save(false);
 
-        return $this->serializeTask($task);
+        return $task->toArray();
     }
 
     public function delete(int $id): array
@@ -98,25 +98,6 @@ class QueueTaskService
         }
 
         return $model;
-    }
-
-    private function serializeTask(QueueTask $model): array
-    {
-        return [
-            'id' => (int)$model->id,
-            'job_id' => $model->job_id,
-            'name' => $model->name,
-            'payload' => $model->payload ?: '{}',
-            'result' => $model->result ?: '',
-            'status' => (int)$model->status,
-            'attempts' => (int)$model->attempts,
-            'error' => $model->error ?: '',
-            'created_by' => (int)$model->created_by,
-            'created_at' => (int)$model->created_at,
-            'started_at' => $model->started_at ? (int)$model->started_at : null,
-            'finished_at' => $model->finished_at ? (int)$model->finished_at : null,
-            'updated_at' => (int)$model->updated_at,
-        ];
     }
 
     private function firstError(QueueTask $model): string

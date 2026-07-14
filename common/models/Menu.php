@@ -61,6 +61,29 @@ class Menu extends \yii\db\ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'parent_id' => static fn(self $model): int => (int)$model->parent_id,
+            'type' => static fn(self $model): int => (int)$model->type,
+            'title',
+            'name',
+            'path',
+            'component',
+            'icon',
+            'permission',
+            'sort' => static fn(self $model): int => (int)$model->sort,
+            'visible' => static fn(self $model): int => (int)$model->visible,
+            'keep_alive' => static fn(self $model): int => (int)$model->keep_alive,
+            'is_external' => static fn(self $model): int => (int)$model->is_external,
+            'external_url',
+            'remark',
+            'created_at' => static fn(self $model): ?int => $model->created_at === null ? null : (int)$model->created_at,
+            'updated_at' => static fn(self $model): ?int => $model->updated_at === null ? null : (int)$model->updated_at,
+        ];
+    }
+
     /**
      * {@inheritdoc}
      */

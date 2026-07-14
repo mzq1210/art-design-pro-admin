@@ -116,7 +116,9 @@ class ManuscriptController extends BaseController
 
     public function actionView(): array
     {
-        return $this->serializeManuscript($this->findManuscript((int)Yii::$app->request->post('id', 0)));
+        return $this->serializeManuscriptArray(
+            $this->findManuscript((int)Yii::$app->request->post('id', 0))->toArray()
+        );
     }
 
     public function actionCreate(): array
@@ -137,7 +139,7 @@ class ManuscriptController extends BaseController
             throw $e;
         }
 
-        return $this->serializeManuscript($model);
+        return $this->serializeManuscriptArray($model->toArray());
     }
 
     public function actionUpdate(): array
@@ -158,7 +160,7 @@ class ManuscriptController extends BaseController
             throw $e;
         }
 
-        return $this->serializeManuscript($model);
+        return $this->serializeManuscriptArray($model->toArray());
     }
 
     public function actionDelete(): array
@@ -283,18 +285,6 @@ class ManuscriptController extends BaseController
                 throw new BadRequestHttpException($this->firstError($link));
             }
         }
-    }
-
-    private function serializeManuscript(Manuscript $model): array
-    {
-        $row = $model->toArray();
-        $customer = $model->customer_id > 0 ? Customer::findOne($model->customer_id) : null;
-        $product = $model->product_id > 0 ? AdProduct::findOne($model->product_id) : null;
-        $row['customer_name'] = $customer->customer_name ?? '';
-        $row['product_name'] = $product->product_name ?? '';
-        $row['product_code'] = $product->product_code ?? '';
-
-        return $this->serializeManuscriptArray($row);
     }
 
     private function serializeManuscriptArray(array $row): array

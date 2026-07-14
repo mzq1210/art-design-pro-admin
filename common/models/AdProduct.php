@@ -47,6 +47,35 @@ class AdProduct extends ActiveRecord
         ];
     }
 
+    public function fields(): array
+    {
+        return [
+            'id' => static fn(self $model): int => (int)$model->id,
+            'category_id' => static fn(self $model): int => (int)$model->category_id,
+            'category_name' => static fn(self $model): string => $model->category->category_name ?? '',
+            'category_code' => static fn(self $model): string => $model->category->category_code ?? '',
+            'product_name',
+            'product_code',
+            'media_name' => static fn(self $model): string => (string)$model->media_name,
+            'ad_type' => static fn(self $model): string => (string)$model->ad_type,
+            'unit' => static fn(self $model): string => (string)$model->unit,
+            'list_price' => static fn(self $model): string => (string)$model->list_price,
+            'base_price' => static fn(self $model): string => (string)$model->base_price,
+            'sale_price' => static fn(self $model): string => (string)$model->sale_price,
+            'inventory_total' => static fn(self $model): int => (int)$model->inventory_total,
+            'inventory_used' => static fn(self $model): int => (int)$model->inventory_used,
+            'inventory_available' => static fn(self $model): int => max(0, (int)$model->inventory_total - (int)$model->inventory_used),
+            'delivery_cycle_days' => static fn(self $model): int => (int)$model->delivery_cycle_days,
+            'status' => static fn(self $model): int => (int)$model->status,
+            'is_hot' => static fn(self $model): int => (int)$model->is_hot,
+            'cover_attachment_id' => static fn(self $model): int => (int)$model->cover_attachment_id,
+            'specification' => static fn(self $model): string => (string)$model->specification,
+            'remark' => static fn(self $model): string => (string)$model->remark,
+            'created_at' => static fn(self $model): int => (int)$model->created_at,
+            'updated_at' => static fn(self $model): int => (int)$model->updated_at,
+        ];
+    }
+
     public function getCategory(): ActiveQuery
     {
         return $this->hasOne(ProductCategory::class, ['id' => 'category_id']);
